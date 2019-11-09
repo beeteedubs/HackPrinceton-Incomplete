@@ -1,4 +1,5 @@
 import psycopg2
+import psycopg2.extras
 import dbconfig
 
 class DatabaseAccessor():
@@ -27,14 +28,18 @@ class DatabaseAccessor():
         return success
 
     def addSet(self, username, exercise_name, reps, weight):
-        cur = self.conn.cursor()
+        cur = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute("insert into exercise (exercise_name, reps, weight, username) values (%s, %s, %s, %s)",
             (exercise_name, reps, weight, username))
         self.conn.commit()
-        cur.execute("select max(time_performed) from exercise where username = %s and exercise_name = %s", 
+        cur.execute("""select max(time_performed) as time_performed 
+                       from exercise 
+                       where username = %s and exercise_name = %s""", 
             (username, exercise_name))
         
         setAdded = cur.fetchone()
+        setAdded['time_performed'] = setAdded['time_performed'].isoformat()
+
         cur.close()
         return setAdded
 
@@ -48,7 +53,7 @@ class DatabaseAccessor():
         return success
 
     def getAllSets(self, username):
-        cur = self.conn.cursor()
+        cur = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute("Select * from exercise where username = %s order by time_performed desc", (username,))
         allSets = cur.fetchall()
         cur.close()
@@ -56,7 +61,7 @@ class DatabaseAccessor():
 
     def getAllExerciseTypes(self):
         # create handle to make use of the connection
-        curr = self.conn.cursor()
+        curr = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         # now do actualy query
         curr.execute("Select distinct exercise_name from musclegroup")
